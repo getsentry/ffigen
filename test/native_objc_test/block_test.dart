@@ -5,7 +5,6 @@
 // Objective C support is only available on mac.
 @TestOn('mac-os')
 
-import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -59,8 +58,8 @@ void main() {
     });
 
     test('Block from function pointer', () {
-      final block =
-          IntBlock.fromFunctionPointer(lib, Pointer.fromFunction(_add100, 999));
+      final block = ObjCBlock.fromFunctionPointer(
+          lib, Pointer.fromFunction(_add100, 999));
       final blockTester = BlockTester.makeFromBlock_(lib, block);
       blockTester.pokeBlock();
       expect(blockTester.call_(123), 223);
@@ -72,99 +71,16 @@ void main() {
     }
 
     test('Block from function', () {
-      final block = IntBlock.fromFunction(lib, makeAdder(4000));
+      final block = ObjCBlock.fromFunction(lib, makeAdder(4000));
       final blockTester = BlockTester.makeFromBlock_(lib, block);
       blockTester.pokeBlock();
       expect(blockTester.call_(123), 4123);
       expect(block(123), 4123);
     });
 
-    test('Listener block same thread', () async {
-      final hasRun = Completer();
-      int value = 0;
-      final block = VoidBlock.listener(lib, () {
-        value = 123;
-        hasRun.complete();
-      });
-
-      BlockTester.callOnSameThread_(lib, block);
-
-      await hasRun.future;
-      expect(value, 123);
-    });
-
-    test('Listener block new thread', () async {
-      final hasRun = Completer();
-      int value = 0;
-      final block = VoidBlock.listener(lib, () {
-        value = 123;
-        hasRun.complete();
-      });
-
-      final thread = BlockTester.callOnNewThread_(lib, block);
-      thread.start();
-
-      await hasRun.future;
-      expect(value, 123);
-    });
-
-    test('Float block', () {
-      final block = FloatBlock.fromFunction(lib, (double x) {
-        return x + 4.56;
-      });
-      expect(block(1.23), closeTo(5.79, 1e-6));
-      expect(BlockTester.callFloatBlock_(lib, block), closeTo(5.79, 1e-6));
-    });
-
-    test('Double block', () {
-      final block = DoubleBlock.fromFunction(lib, (double x) {
-        return x + 4.56;
-      });
-      expect(block(1.23), closeTo(5.79, 1e-6));
-      expect(BlockTester.callDoubleBlock_(lib, block), closeTo(5.79, 1e-6));
-    });
-
-    test('Struct block', () {
-      final inputPtr = calloc<Vec4>();
-      final input = inputPtr.ref;
-      input.x = 1.2;
-      input.y = 3.4;
-      input.z = 5.6;
-      input.w = 7.8;
-
-      final tempPtr = calloc<Vec4>();
-      final temp = tempPtr.ref;
-      final block = Vec4Block.fromFunction(lib, (Vec4 v) {
-        // Twiddle the Vec4 components.
-        temp.x = v.y;
-        temp.y = v.z;
-        temp.z = v.w;
-        temp.w = v.x;
-        return temp;
-      });
-
-      final result1 = block(input);
-      expect(result1.x, 3.4);
-      expect(result1.y, 5.6);
-      expect(result1.z, 7.8);
-      expect(result1.w, 1.2);
-
-      final result2Ptr = calloc<Vec4>();
-      final result2 = result2Ptr.ref;
-      BlockTester.callVec4Block_(lib, result2Ptr, block);
-      expect(result2.x, 3.4);
-      expect(result2.y, 5.6);
-      expect(result2.z, 7.8);
-      expect(result2.w, 1.2);
-
-      calloc.free(inputPtr);
-      calloc.free(tempPtr);
-      calloc.free(result2Ptr);
-    });
-
     Pointer<Void> funcPointerBlockRefCountTest() {
-      final block =
-          IntBlock.fromFunctionPointer(lib, Pointer.fromFunction(_add100, 999));
+      final block = ObjCBlock.fromFunctionPointer(
+          lib, Pointer.fromFunction(_add100, 999));
       expect(BlockTester.getBlockRetainCount_(lib, block.pointer.cast()), 1);
       return block.pointer.cast();
     }
@@ -176,7 +92,7 @@ void main() {
     });
 
     Pointer<Void> funcBlockRefCountTest() {
-      final block = IntBlock.fromFunction(lib, makeAdder(4000));
+      final block = ObjCBlock.fromFunction(lib, makeAdder(4000));
       expect(BlockTester.getBlockRetainCount_(lib, block.pointer.cast()), 1);
       return block.pointer.cast();
     }
@@ -188,7 +104,7 @@ void main() {
     });
 
     test('Block fields have sensible values', () {
-      final block = IntBlock.fromFunction(lib, makeAdder(4000));
+      final block = ObjCBlock.fromFunction(lib, makeAdder(4000));
       final blockPtr = block.pointer;
       expect(blockPtr.ref.isa, isNot(0));
       expect(blockPtr.ref.flags, isNot(0)); // Set by Block_copy.
